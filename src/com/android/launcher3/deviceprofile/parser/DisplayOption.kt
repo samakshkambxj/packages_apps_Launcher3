@@ -170,16 +170,17 @@ private constructor(@JvmField val grid: GridOption, context: Context, ta: TypedA
 
     @JvmField
     val allAppsIconSizes: FloatArray =
-        ta.parseTypedMap(
-                iconSizes[INDEX_DEFAULT],
-                R.styleable.ProfileDisplayOption_allAppsIconSize,
-                R.styleable.ProfileDisplayOption_allAppsIconSizeLandscape,
-                R.styleable.ProfileDisplayOption_allAppsIconSizeTwoPanelPortrait,
-                R.styleable.ProfileDisplayOption_allAppsIconSizeTwoPanelLandscape,
-            ) { i, v ->
-                getFloat(i, v)
-            }
-            .toFloatArray()
+        // Honor the icon size modifier for an explicitly set all-apps icon size,
+        // falling back to the (already modified) workspace icon size when unset.
+        ta.getFloat(R.styleable.ProfileDisplayOption_allAppsIconSize, 0f).let { raw ->
+            val base = if (raw == 0f) iconSizes[INDEX_DEFAULT] else raw * iconSizeModifier
+            floatArrayOf(
+                base,
+                ta.getFloat(R.styleable.ProfileDisplayOption_allAppsIconSizeLandscape, base),
+                ta.getFloat(R.styleable.ProfileDisplayOption_allAppsIconSizeTwoPanelPortrait, base),
+                ta.getFloat(R.styleable.ProfileDisplayOption_allAppsIconSizeTwoPanelLandscape, base),
+            )
+        }
 
     @JvmField
     val allAppsIconTextSizes: FloatArray =
