@@ -85,6 +85,12 @@ public class LauncherRootView extends InsettableFrameLayout {
         super.setInsets(mInsets);
     }
 
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        mSysUiScrim.release();
+    }
+
     public void setWindowStateListener(WindowStateListener listener) {
         mWindowStateListener = listener;
     }

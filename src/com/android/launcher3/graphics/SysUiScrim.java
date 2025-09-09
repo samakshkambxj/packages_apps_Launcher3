@@ -87,6 +87,7 @@ public class SysUiScrim implements View.OnAttachStateChangeListener {
     private final View mRoot;
     private final StatefulContainer mContainer;
     private final boolean mHideSysUiScrim;
+    private boolean mAttachListenerAdded;
     private boolean mSkipScrimAnimationForTest = false;
 
     private boolean mAnimateScrimOnNextDraw = false;
@@ -112,6 +113,7 @@ public class SysUiScrim implements View.OnAttachStateChangeListener {
 
         if (!mHideSysUiScrim) {
             view.addOnAttachStateChangeListener(this);
+            mAttachListenerAdded = true;
         }
     }
 
@@ -182,6 +184,14 @@ public class SysUiScrim implements View.OnAttachStateChangeListener {
     @Override
     public void onViewDetachedFromWindow(View view) {
         ScreenOnTracker.INSTANCE.get(mContainer.asContext()).removeListener(mScreenOnListener);
+    }
+
+    /** Releases listeners held by the scrim so a destroyed root view cannot leak it. */
+    public void release() {
+        if (mAttachListenerAdded) {
+            mRoot.removeOnAttachStateChangeListener(this);
+            mAttachListenerAdded = false;
+        }
     }
 
     /**
