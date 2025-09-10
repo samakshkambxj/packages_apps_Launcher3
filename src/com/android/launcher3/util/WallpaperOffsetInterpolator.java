@@ -205,6 +205,7 @@ public class WallpaperOffsetInterpolator {
         if (mWindowToken == null && mRegistered) {
             mWallpaperChangeReceiver.close();
             mRegistered = false;
+            mHandler.removeCallbacksAndMessages(null);
         } else if (mWindowToken != null && !mRegistered) {
             mWallpaperChangeReceiver.register(
                     actionsFilter(ACTION_WALLPAPER_CHANGED),
