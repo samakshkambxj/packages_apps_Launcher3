@@ -152,6 +152,13 @@
             android:min="0"
             settings:units="%"
             android:defaultValue="60" />
+
+        <SwitchPreferenceCompat
+            android:key="pref_drawer_list"
+            android:title="@string/drawer_list_title"
+            android:summary="@string/drawer_list_summary"
+            android:defaultValue="true"
+            android:persistent="true" />
     </androidx.preference.PreferenceCategory>
 
     <androidx.preference.PreferenceCategory
