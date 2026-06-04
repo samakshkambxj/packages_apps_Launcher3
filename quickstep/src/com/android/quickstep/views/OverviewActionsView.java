@@ -54,6 +54,7 @@ import java.util.Arrays;
 public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayout
         implements OnClickListener, Insettable {
     public static final String TAG = "OverviewActionsView";
+    private static final boolean DEBUG = false;
     private final Rect mInsets = new Rect();
 
     /**
@@ -301,8 +302,10 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
      *                      pair.
      */
     public void updateForGroupedTask(boolean isGroupedTask, boolean canSaveAppPair) {
-        Log.d(TAG, "updateForGroupedTask() called with: isGroupedTask = [" + isGroupedTask
-                + "], canSaveAppPair = [" + canSaveAppPair + "]");
+        if (DEBUG) {
+            Log.d(TAG, "updateForGroupedTask() called with: isGroupedTask = [" + isGroupedTask
+                    + "], canSaveAppPair = [" + canSaveAppPair + "]");
+        }
         mIsGroupedTask = isGroupedTask;
         mCanSaveAppPair = canSaveAppPair;
         updateActionButtonsVisibility();
@@ -326,8 +329,10 @@ public class OverviewActionsView<T extends OverlayUICallbacks> extends FrameLayo
         boolean showSingleTaskActions = !mIsGroupedTask;
         boolean showGroupActions = mIsGroupedTask && mDp.getDeviceProperties().isLargeScreen()
                 && mCanSaveAppPair;
-        Log.d(TAG, "updateActionButtonsVisibility() called: showSingleTaskActions = ["
-                + showSingleTaskActions + "], showGroupActions = [" + showGroupActions + "]");
+        if (DEBUG) {
+            Log.d(TAG, "updateActionButtonsVisibility() called: showSingleTaskActions = ["
+                    + showSingleTaskActions + "], showGroupActions = [" + showGroupActions + "]");
+        }
         getActionsAlphas().get(INDEX_GROUPED_ALPHA).setValue(showSingleTaskActions ? 1 : 0);
         getGroupActionsAlphas().get(INDEX_GROUPED_ALPHA).setValue(showGroupActions ? 1 : 0);
     }
