@@ -240,11 +240,13 @@ public class BaseDepthControllerImpl<
             return;
         }
         if (mBaseSurface == null) {
-            Log.d(TAG, "mSurface is null and mCurrentBlur is: " + mCurrentBlur);
+            if (DEBUG) {
+                Log.d(TAG, "mSurface is null and mCurrentBlur is: " + mCurrentBlur);
+            }
             return;
         }
         if (!mBaseSurface.isValid()) {
-            Log.d(TAG, "mSurface is not valid");
+            if (DEBUG) Log.d(TAG, "mSurface is not valid");
             mWaitingOnSurfaceValidity = true;
             onInvalidSurface();
             return;
@@ -268,8 +270,10 @@ public class BaseDepthControllerImpl<
             return;
         }
         mCurrentBlur = newBlur;
-        Log.v(TAG, "Applying blur: " + mCurrentBlur + " to " + blurSurface + " applyImmediately: "
-                + applyImmediately);
+        if (DEBUG) {
+            Log.v(TAG, "Applying blur: " + mCurrentBlur + " to " + blurSurface + " applyImmediately: "
+                    + applyImmediately);
+        }
 
         if (surfaceTransaction == null) {
             surfaceTransaction = new SurfaceTransaction();
@@ -325,7 +329,7 @@ public class BaseDepthControllerImpl<
         if (mInEarlyWakeUp == start) {
             return;
         }
-        Log.d(TAG, "setEarlyWakeup: " + start);
+        if (DEBUG) Log.d(TAG, "setEarlyWakeup: " + start);
         if (start) {
             Trace.instantForTrack(TRACE_TAG_APP, TAG, "notifyRendererForGpuLoadUp");
             mContainer.getRootView().getViewRootImpl().notifyRendererForGpuLoadUp("applyBlur");
