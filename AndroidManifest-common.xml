@@ -156,6 +156,13 @@
             </intent-filter>
         </activity>
 
+        <!-- Overscroll physics -->
+        <activity
+            android:name="com.android.launcher3.settings.SettingsOverscroll"
+            android:label="@string/overscroll_settings_title"
+            android:theme="@style/HomeSettings.Theme"
+            android:exported="true"
+            android:autoRemoveFromRecents="true" />
         <provider
             android:name="com.android.launcher3.testing.TestInformationProvider"
             android:authorities="${applicationId}.TestInfo"

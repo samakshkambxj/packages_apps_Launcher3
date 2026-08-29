@@ -394,6 +394,13 @@ public class SettingsActivity extends FragmentActivity
                 case Utilities.KEY_BLUR_DEPTH:
                     updateBlurPrefDefault((CustomSeekBarPreference) preference);
                     return true;
+
+                case "pref_overscroll_settings":
+                    preference.setOnPreferenceClickListener(pref -> {
+                        startActivity(new Intent(getActivity(), SettingsOverscroll.class));
+                        return true;
+                    });
+                    return true;
             }
 
             return true;
