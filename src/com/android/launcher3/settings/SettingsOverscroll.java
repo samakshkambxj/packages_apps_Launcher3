@@ -22,9 +22,7 @@ import android.view.MenuItem;
 import androidx.fragment.app.FragmentManager;
 import androidx.preference.PreferenceFragmentCompat;
 
-import com.android.launcher3.LauncherAppState;
 import com.android.launcher3.LauncherFiles;
-import com.android.launcher3.LauncherPrefs;
 import com.android.launcher3.R;
 
 import com.android.settingslib.collapsingtoolbar.CollapsingToolbarBaseActivity;
@@ -75,12 +73,8 @@ public class SettingsOverscroll extends CollapsingToolbarBaseActivity {
 
         @Override
         public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-            if (LauncherPrefs.OVERSCROLL_STIFFNESS.getSharedPrefKey().equals(key)
-                    || LauncherPrefs.OVERSCROLL_DAMPING_RATIO.getSharedPrefKey().equals(key)
-                    || LauncherPrefs.OVERSCROLL_MAX_STRETCH.getSharedPrefKey().equals(key)
-                    || LauncherPrefs.OVERSCROLL_VELOCITY_SCALE.getSharedPrefKey().equals(key)) {
-                LauncherAppState.INSTANCE.executeIfCreated(app -> app.setNeedsRestart());
-            }
+            // Overscroll values are read live when each EdgeEffect is created,
+            // so no restart is needed.
         }
     }
 }
