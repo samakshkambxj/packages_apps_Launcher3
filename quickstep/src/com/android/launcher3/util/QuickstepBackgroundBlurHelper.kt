@@ -81,31 +81,37 @@ constructor(
         }
 
         val folderIcon = folder.folderIcon
-        val folderNameVisibility: Int = folderIcon.folderName.visibility
+        val folderName = folderIcon.folderName
+        val folderNameVisibility = folderName.visibility
         val isIconVisible = folderIcon.iconVisible
 
-        folderIcon.setTextVisible(false)
-        folderIcon.setIconVisible(false)
+        try {
+            folderName.visibility = View.INVISIBLE
+            folderIcon.setIconVisible(false)
 
-        val dragLayer = activityContext.dragLayer
+            val dragLayer = activityContext.dragLayer
 
-        // Exclude other folders attached to the drag layer to protect against
-        // a possible RenderThread crash
-        val openFolders =
-            (0 until dragLayer.childCount)
-                .mapNotNull { dragLayer.getChildAt(it) as? Folder }
-        openFolders.forEach { it.visibility = View.INVISIBLE }
+            // Exclude other folders attached to the drag layer to protect against
+            // a possible RenderThread crash
+            val openFolders =
+                (0 until dragLayer.childCount)
+                    .mapNotNull { dragLayer.getChildAt(it) as? Folder }
+            openFolders.forEach { it.visibility = View.INVISIBLE }
 
-        val canvas =
-            workspaceBlurRenderNode.beginRecording(dragLayer.getWidth(), dragLayer.getHeight())
-        dragLayer.draw(canvas)
-        workspaceBlurRenderNode.endRecording()
-        workspaceBlurRenderNode.setPosition(0, 0, dragLayer.getWidth(), dragLayer.getHeight())
+            val canvas =
+                workspaceBlurRenderNode.beginRecording(dragLayer.width, dragLayer.height)
+            try {
+                dragLayer.draw(canvas)
+            } finally {
+                workspaceBlurRenderNode.endRecording()
+            }
+            workspaceBlurRenderNode.setPosition(0, 0, dragLayer.width, dragLayer.height)
 
-        openFolders.forEach { it.visibility = View.VISIBLE; it.invalidate() }
-
-        folderIcon.folderName.visibility = folderNameVisibility
-        folderIcon.setIconVisible(isIconVisible)
+            openFolders.forEach { it.visibility = View.VISIBLE; it.invalidate() }
+        } finally {
+            folderName.visibility = folderNameVisibility
+            folderIcon.setIconVisible(isIconVisible)
+        }
     }
 
     override fun drawFolderBlur(canvas: Canvas, pathWrapper: PathWrapper?, view: View) {
