@@ -25,6 +25,7 @@ import com.android.launcher3.LauncherSettings.Favorites.CELLX
 import com.android.launcher3.LauncherSettings.Favorites.CELLY
 import com.android.launcher3.LauncherSettings.Favorites.CONTAINER
 import com.android.launcher3.LauncherSettings.Favorites.ICON
+import com.android.launcher3.LauncherSettings.Favorites.ICON_SIZE_DP
 import com.android.launcher3.LauncherSettings.Favorites.INTENT
 import com.android.launcher3.LauncherSettings.Favorites.ITEM_TYPE
 import com.android.launcher3.LauncherSettings.Favorites.OPTIONS
@@ -36,6 +37,7 @@ import com.android.launcher3.LauncherSettings.Favorites.SPANX
 import com.android.launcher3.LauncherSettings.Favorites.SPANY
 import com.android.launcher3.LauncherSettings.Favorites.TITLE
 import com.android.launcher3.LauncherSettings.Favorites._ID
+import kotlin.math.max
 import kotlin.reflect.KProperty
 
 /** Helper class to easily read model properties from a cursor */
@@ -67,6 +69,16 @@ open class ModelCursorWrapper(cursor: Cursor, private val queriedColumns: Array<
 
     val intentString: String? by INTENT.delegateString()
     val serialNumber: Long by PROFILE_ID.delegate { getLong(it) }
+
+    /**
+     * Individual workspace icon size in dp, or 0 to follow the global size. Legacy schemas
+     * read during a database upgrade may not contain this column.
+     */
+    val iconSizeDp: Int
+        get() {
+            val index = getColumnIndex(ICON_SIZE_DP)
+            return if (index < 0) 0 else max(0, getInt(index))
+        }
 
     /** Returns the icon data for at the current position */
     val iconBlob: ByteArray? by ICON.delegate { getBlob(it) }

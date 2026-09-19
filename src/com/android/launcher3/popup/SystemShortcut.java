@@ -3,6 +3,7 @@ package com.android.launcher3.popup;
 import static com.android.launcher3.AbstractFloatingView.TYPE_FOLDER;
 import static com.android.launcher3.LauncherSettings.Favorites.CONTAINER_ALL_APPS;
 import static com.android.launcher3.LauncherSettings.Favorites.CONTAINER_ALL_APPS_PREDICTION;
+import static com.android.launcher3.LauncherSettings.Favorites.ITEM_TYPE_APPLICATION;
 import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCHER_DISMISS_PREDICTION_UNDO;
 import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCHER_PRIVATE_SPACE_INSTALL_SYSTEM_SHORTCUT_TAP;
 import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCHER_PRIVATE_SPACE_UNINSTALL_SYSTEM_SHORTCUT_TAP;
@@ -11,24 +12,37 @@ import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCH
 import static com.android.launcher3.logging.StatsLogManager.LauncherEvent.LAUNCHER_SYSTEM_SHORTCUT_WIDGETS_TAP;
 import static com.android.launcher3.testing.shared.ResourceUtils.INVALID_RESOURCE_HANDLE;
 
+import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.LauncherActivityInfo;
+import android.content.pm.LauncherApps;
+import android.content.pm.PackageManager;
 import android.content.pm.ShortcutInfo;
 import android.graphics.Rect;
+import android.net.Uri;
 import android.os.Process;
 import android.os.UserHandle;
+import android.text.InputFilter;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.android.launcher3.AbstractFloatingView;
 import com.android.launcher3.AbstractFloatingViewHelper;
+import com.android.launcher3.BubbleTextView;
 import com.android.launcher3.DropTargetHandler;
 import com.android.launcher3.Flags;
 import com.android.launcher3.LauncherModel;
@@ -48,6 +62,7 @@ import com.android.launcher3.testing.shared.ResourceUtils;
 import com.android.launcher3.util.ActivityOptionsWrapper;
 import com.android.launcher3.util.ApiWrapper;
 import com.android.launcher3.util.ComponentKey;
+import com.android.launcher3.util.CustomAppNameStore;
 import com.android.launcher3.util.InstantAppResolver;
 import com.android.launcher3.util.PackageManagerHelper;
 import com.android.launcher3.util.PackageUserKey;
@@ -56,6 +71,7 @@ import com.android.launcher3.views.Snackbar;
 import com.android.launcher3.widget.picker.model.data.WidgetPickerData;
 import com.android.wm.shell.shared.bubbles.logging.EntryPoint;
 
+import java.net.URISyntaxException;
 import java.util.Arrays;
 
 /**
@@ -629,4 +645,240 @@ public abstract class SystemShortcut<T extends ActivityContext> extends ItemInfo
                 // Don't show the shortcut for items without an icon or that don't support App Lock.
                 return null;
             };
+
+    public static final Factory<ActivityContext> UNINSTALL = (activity, itemInfo, originalView) -> {
+        if (itemInfo.getTargetComponent() == null || isSystemApp((Context) activity, itemInfo)) {
+            return null;
+        }
+        return new UnInstall(activity, itemInfo, originalView);
+    };
+
+    private static boolean isSystemApp(Context context, ItemInfo itemInfo) {
+        ComponentName cn = itemInfo.getTargetComponent();
+        if (cn == null) {
+            return true;
+        }
+        try {
+            ApplicationInfo ai = context.getPackageManager().getApplicationInfo(
+                    cn.getPackageName(), 0);
+            return (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+        } catch (PackageManager.NameNotFoundException e) {
+            return true;
+        }
+    }
+
+    public static class UnInstall<T extends ActivityContext> extends SystemShortcut<T> {
+
+        public UnInstall(T target, ItemInfo itemInfo, View originalView) {
+            super(R.drawable.ic_uninstall_no_shadow, R.string.uninstall_drop_target_label,
+                    target, itemInfo, originalView);
+        }
+
+        /**
+         * @return the component name that should be uninstalled or null.
+         */
+        private ComponentName getUninstallTarget(ItemInfo item, Context context) {
+            Intent intent = null;
+            UserHandle user = null;
+            if (item != null
+                    && (item.itemType == ITEM_TYPE_APPLICATION
+                            || item.itemType == LauncherSettings.Favorites.ITEM_TYPE_TASK)) {
+                intent = item.getIntent();
+                user = item.user;
+            }
+            if (intent != null) {
+                LauncherActivityInfo info = context.getSystemService(LauncherApps.class)
+                        .resolveActivity(intent, user);
+                if (info != null
+                        && (info.getApplicationInfo().flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
+                    return info.getComponentName();
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public void onClick(View view) {
+            ComponentName cn = getUninstallTarget(mItemInfo, view.getContext());
+            if (cn == null) {
+                // System applications cannot be installed. For now, show a toast explaining that.
+                // We may give them the option of disabling apps this way.
+                Toast.makeText(view.getContext(), R.string.uninstall_system_app_text,
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            try {
+                Intent intent = Intent.parseUri(
+                                view.getContext().getString(R.string.delete_package_intent), 0)
+                        .setData(Uri.fromParts("package", cn.getPackageName(), cn.getClassName()))
+                        .putExtra(Intent.EXTRA_USER, mItemInfo.user);
+                ((Context) mTarget).startActivity(intent);
+                AbstractFloatingView.closeAllOpenViews(mTarget);
+            } catch (URISyntaxException e) {
+                // Do nothing.
+            }
+        }
+    }
+
+    public static final Factory<ActivityContext> RENAME_APP =
+            (activity, itemInfo, originalView) -> {
+                if (itemInfo.itemType == ITEM_TYPE_APPLICATION
+                        && itemInfo.getTargetComponent() != null) {
+                    return new RenameApp<>(activity, itemInfo, originalView);
+                }
+                return null;
+            };
+
+    public static final Factory<Launcher> RESET_ICON_SIZE = (launcher, itemInfo, originalView) -> {
+        if (!(itemInfo instanceof WorkspaceItemInfo workspaceItem)
+                || workspaceItem.container != LauncherSettings.Favorites.CONTAINER_DESKTOP
+                || workspaceItem.iconSizeDp == 0
+                || !(originalView instanceof BubbleTextView icon)) {
+            return null;
+        }
+        return new SystemShortcut<Launcher>(R.drawable.ic_custom_seekbar_reset,
+                R.string.reset_icon_size, launcher, itemInfo, originalView, false) {
+            @Override
+            public void onClick(View view) {
+                AbstractFloatingView.closeAllOpenViews(launcher);
+                workspaceItem.iconSizeDp = 0;
+                icon.applyWorkspaceIconSize();
+                launcher.getModelWriter().updateItemInDatabase(workspaceItem);
+            }
+        };
+    };
+
+    public static class RenameApp<T extends ActivityContext> extends SystemShortcut<T> {
+        private static final int MAX_APP_NAME_LENGTH = 32;
+
+        public RenameApp(T target, ItemInfo itemInfo, @NonNull View originalView) {
+            super(getDrawableId(), R.string.rename_app_label, target,
+                    itemInfo, originalView);
+        }
+
+        public static int getDrawableId() {
+            return R.drawable.gm_edit_24;
+        }
+
+        @Override
+        public void onClick(View view) {
+            dismissTaskMenuView();
+
+            Context context = view.getContext();
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            builder.setTitle(R.string.rename_app_title);
+
+            View content = View.inflate(context, R.layout.dialog_rename_app, null);
+            final EditText input = content.findViewById(R.id.app_name_input);
+            input.setText(mItemInfo.title);
+            input.setSelection(0, mItemInfo.title != null ? mItemInfo.title.length() : 0);
+            input.setFilters(new InputFilter[]{new InputFilter.LengthFilter(MAX_APP_NAME_LENGTH)});
+            final CheckBox hideName = content.findViewById(R.id.hide_app_name);
+            hideName.setChecked(CustomAppNameStore.isNameHidden(context, mItemInfo));
+
+            builder.setView(content);
+            builder.setPositiveButton(android.R.string.ok, null);
+
+            builder.setNegativeButton(android.R.string.cancel, (dialog, which) -> dialog.cancel());
+
+            if (CustomAppNameStore.getCustomName(context, mItemInfo) != null
+                    || hideName.isChecked()) {
+                builder.setNeutralButton(R.string.rename_app_reset, (dialog2, which2) -> {
+                    resetToOriginalName(context);
+                    Toast.makeText(context,
+                            R.string.rename_app_reset_message,
+                            Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            AlertDialog dialog = builder.create();
+            dialog.show();
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(button -> {
+                String newName = input.getText().toString().trim();
+                if (validateAndUpdateName(newName, hideName.isChecked(), context)) {
+                    Toast.makeText(context, R.string.rename_app_updated,
+                            Toast.LENGTH_SHORT).show();
+                    dialog.dismiss();
+                } else {
+                    input.setError(newName.isEmpty()
+                            ? context.getString(R.string.rename_app_empty_error)
+                            : context.getString(R.string.rename_app_length_error,
+                                    MAX_APP_NAME_LENGTH));
+                }
+            });
+
+            input.requestFocus();
+            InputMethodManager imm = (InputMethodManager)
+                    context.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT);
+            }
+        }
+
+        private boolean validateAndUpdateName(String newName, boolean hideName, Context context) {
+            if (newName.isEmpty()) {
+                return false;
+            }
+
+            boolean nameChanged = !TextUtils.equals(newName, mItemInfo.title);
+            if (nameChanged && newName.length() > MAX_APP_NAME_LENGTH) {
+                return false;
+            }
+
+            CustomAppNameStore.setNameHidden(context, mItemInfo, hideName);
+            if (nameChanged) {
+                mItemInfo.title = newName;
+                CustomAppNameStore.saveCustomName(context, mItemInfo, newName);
+                if (mItemInfo instanceof WorkspaceItemInfo wsInfo) {
+                    mTarget.getModelWriter().updateItemInDatabase(wsInfo);
+                }
+            }
+
+            forceUiUpdate(context);
+
+            return true;
+        }
+
+        private void resetToOriginalName(Context context) {
+            CustomAppNameStore.saveCustomName(context, mItemInfo, null);
+            CustomAppNameStore.setNameHidden(context, mItemInfo, false);
+            CharSequence systemTitle = getSystemTitle(context, mItemInfo);
+            if (systemTitle != null) {
+                mItemInfo.title = systemTitle;
+            }
+
+            if (mItemInfo instanceof WorkspaceItemInfo && systemTitle != null) {
+                WorkspaceItemInfo wsInfo = (WorkspaceItemInfo) mItemInfo;
+                mTarget.getModelWriter().updateItemInDatabase(wsInfo);
+            }
+
+            forceUiUpdate(context);
+        }
+
+        @Nullable
+        private static CharSequence getSystemTitle(Context context, ItemInfo info) {
+            ComponentName cn = info.getTargetComponent();
+            if (cn == null) {
+                return null;
+            }
+            Intent intent = new Intent(Intent.ACTION_MAIN);
+            intent.addCategory(Intent.CATEGORY_LAUNCHER);
+            intent.setComponent(cn);
+            LauncherActivityInfo activityInfo = context.getSystemService(LauncherApps.class)
+                    .resolveActivity(intent, info.user);
+            if (activityInfo != null) {
+                return Utilities.trim(activityInfo.getLabel());
+            }
+            return null;
+        }
+
+        private void forceUiUpdate(Context context) {
+            // 17 has no model callback for custom app names; refresh the source view directly.
+            if (mOriginalView instanceof BubbleTextView icon) {
+                icon.applyLabel(mItemInfo);
+            }
+        }
+    }
 }
