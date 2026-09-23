@@ -163,4 +163,9 @@
     <string name="rename_app_length_error">App name must be %1$d characters or less</string>
     <string name="rename_app_reset">Reset</string>
     <string name="rename_app_reset_message">Name reset to original</string>
+
+    <!-- Custom folder thumbnail -->
+    <string name="folder_thumbnail_set">Folder thumbnail</string>
+    <string name="folder_thumbnail_reset">Reset thumbnail</string>
+    <string name="folder_thumbnail_failed">Couldn\'t use that image</string>
 </resources>
